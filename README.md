@@ -252,8 +252,17 @@ Nén folder `output/` thành file zip. Zip phải chứa đúng 50 JSON từ `EC
 Trong repo phải có thêm:
 
 - `architecture.md`: sơ đồ agent, vai trò, quyền truy cập và luồng handoff (đặt ở root repo)
+- `individual_5SoCuoiMHV_HoVaTen.md`: báo cáo cá nhân (đặt ở root repo)
 - `trace.jsonl`: trace chạy thật của 50 case (không append, chỉ cần lượt chạy mới nhất)
 - `metadata.json`: model, parameter size, framework và runtime
+
+&rarr; Làm chung trên 1 repo nhóm, báo cáo cá nhân để chung trong repo và nộp repo nhóm này, giữ nguyên tên repo không đổi
+
+| Thời gian   | Checkpoint   | Nội dung             |
+| ----------- | ------------ | -------------------- |
+| 13h-13h30   | Checkpoint 1 | Công bố input đề bài |
+| 13h30-17h30 | Checkpoint 2 | Competition          |
+| 17h30-18h   | Checkpoint 3 | Chốt leaderboard     |
 
 ## 9. Lưu ý
 
