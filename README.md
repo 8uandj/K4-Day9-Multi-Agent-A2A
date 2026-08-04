@@ -1,0 +1,263 @@
+# K4 Day 09 - Multi-Agent E-commerce Dispute Resolution
+
+## 1. Bài toán
+
+Xây dựng một hệ thống multi-agent để điều tra 50 yêu cầu hỗ trợ của khách hàng trên dữ liệu Olist. Với mỗi case, hệ thống phải đối chiếu nhiều nguồn dữ liệu, xác định vấn đề chính và vấn đề phụ, bên chịu trách nhiệm, bằng chứng, khoản hoàn đề xuất và các hành động xử lý.
+
+Trong thực tế, một khiếu nại thương mại điện tử thường không thể được giải quyết chỉ từ nội dung khách hàng cung cấp. Nhân viên chăm sóc khách hàng phải kiểm tra trạng thái đơn, thời hạn seller bàn giao hàng, thời điểm đơn vị vận chuyển giao thực tế, toàn bộ item và payment, lịch sử mua hàng của khách và thông tin sản phẩm. Cùng một phản ánh "giao hàng trễ" nhưng trách nhiệm có thể thuộc về seller, đơn vị vận chuyển hoặc không bên nào nếu dữ liệu cho thấy đơn được giao đúng cam kết.
+
+Quy trình này thường cần nhiều bộ phận phối hợp và trao đổi kết quả với nhau. Bài lab này mô phỏng quy trình đó bằng các agent: mỗi agent phân tích một domain dữ liệu, sau đó handoff bằng chứng cho agent điều phối để đưa ra kết luận cuối cùng. Hệ thống phải ưu tiên dữ liệu có thể kiểm chứng thay vì tin hoàn toàn vào lời khiếu nại hoặc tự tạo ra sự kiện không tồn tại.
+
+## 2. Dữ liệu
+
+https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
+
+Thư mục `data/` chứa 9 file CSV của Brazilian E-Commerce Public Dataset by Olist. Các khóa join chính:
+
+- `orders.customer_id -> customers.customer_id`
+- `orders.order_id -> order_items.order_id`
+- `orders.order_id -> order_payments.order_id`
+- `orders.order_id -> order_reviews.order_id`
+- `order_items.product_id -> products.product_id`
+- `order_items.seller_id -> sellers.seller_id`
+- Các cột `*_zip_code_prefix` có thể nối với `geolocation_zip_code_prefix` sau khi gộp geolocation theo zip code.
+
+Lưu ý về dữ liệu:
+
+- Mỗi `customer_id` đại diện cho một order; dùng `customer_unique_id` để nhận diện cùng khách hàng qua nhiều order.
+- Một order có thể có nhiều item, seller hoặc payment row.
+- `payment_value` là số tiền của từng payment row, không phải giá trị của từng installment.
+- Olist không có refund ledger, transaction ID, tracking checkpoint theo item hoặc bằng chứng giao sai/giao thiếu. Không cần suy diễn các sự kiện này cho đỡ tốn công.
+- Các timestamp được so sánh theo giá trị trong CSV; không cần chuyển múi giờ.
+
+## 3. Input
+
+Thư mục `input/` có:
+
+```text
+EC_001.json
+EC_002.json
+...
+EC_050.json
+```
+
+Với địngh chuẩn:
+
+```json
+{
+  "case_id": "EC_001",
+  "customer_request": {
+    "language": "vi",
+    "message": "Hãy điều tra khiếu nại, kiểm tra lịch sử khách hàng và đối soát toàn bộ order.",
+    "claimed_order_id": "<olist_order_id>"
+  },
+  "investigation_scope": {
+    "include_customer_history": true,
+    "include_product_context": true
+  },
+  "policy_version": "EC_POLICY_V2"
+}
+```
+
+Hệ thống dùng `claimed_order_id` để truy xuất và join các CSV. Không đưa các order lịch sử vào `affected_entities`; chúng chỉ xuất hiện trong `customer_context.related_order_ids`.
+
+## 4. Quy tắc nghiệp vụ
+
+Áp dụng `EC_POLICY_V2` theo thứ tự ưu tiên dưới đây. Mọi phép tính tiền và số giờ được làm tròn 2 chữ số thập phân.
+
+| Primary issue             | Điều kiện                                                                          | Responsible party                           |       Refund | Action                        |
+| ------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------- | -----------: | ----------------------------- |
+| `canceled_order_paid`     | `order_status = canceled` và tổng payment > 0                                      | `platform` / `OLIST_PLATFORM`               | Tổng payment | `issue_full_refund`           |
+| `unavailable_order_paid`  | `order_status = unavailable` và tổng payment > 0                                   | `platform` / `OLIST_PLATFORM`               | Tổng payment | `issue_full_refund`           |
+| `late_delivery_seller`    | Giao sau estimated date và carrier nhận hàng sau ít nhất một `shipping_limit_date` | `seller` / các seller vi phạm               | Tổng freight | `refund_freight`              |
+| `late_delivery_logistics` | Giao sau estimated date và không seller nào bàn giao muộn                          | `logistics_provider` / `LOGISTICS_PROVIDER` | Tổng freight | `refund_freight`              |
+| `valid_split_payment`     | Có từ 2 payment row; tổng payment khớp tổng item + freight trong sai số 0.10 BRL   | Không có                                    |            0 | `explain_valid_split_payment` |
+| `unsupported_late_claim`  | Đơn giao không muộn hơn estimated date và payment khớp                             | Không có                                    |            0 | `reject_late_refund`          |
+
+Secondary issues được thêm theo đúng thứ tự sau khi thỏa điều kiện:
+
+1. `multi_item_order`: có từ 2 item row.
+2. `multi_seller_order`: có từ 2 seller khác nhau.
+3. `split_payment`: có từ 2 payment row.
+4. `repeat_customer`: cùng `customer_unique_id` có order khác.
+5. `multiple_categories`: có từ 2 category khác nhau.
+
+Root-cause code tương ứng:
+
+- `SELLER_HANDOFF_AFTER_LIMIT`
+- `CARRIER_DELIVERED_AFTER_ESTIMATE`
+- `ORDER_CANCELED_AFTER_PAYMENT`
+- `ORDER_UNAVAILABLE_AFTER_PAYMENT`
+- `MULTIPLE_PAYMENTS_RECONCILED`
+- `DELIVERY_WITHIN_ESTIMATE`
+
+Công thức phân tích:
+
+```text
+delivery_variance_hours
+  = order_delivered_customer_date - order_estimated_delivery_date
+
+handoff_variance_hours
+  = order_delivered_carrier_date - shipping_limit_date sớm nhất của seller
+
+expected_total_brl
+  = sum(order_items.price) + sum(order_items.freight_value)
+
+difference_brl
+  = sum(order_payments.payment_value) - expected_total_brl
+
+reconciled
+  = abs(difference_brl) <= 0.10 BRL
+```
+
+Với order không có item row, `expected_total_brl`, `difference_brl` và `reconciled` phải là `null`; item, seller, product, category và seller handoff để mảng rỗng.
+
+Các action bổ sung được đặt sau action chính theo thứ tự: `review_seller_handoff` hoặc `review_carrier_delay`, `verify_refund_completion`, `coordinate_multi_seller_case`, `verify_payment_allocation`. Không thêm `verify_payment_allocation` khi primary issue là `valid_split_payment` vì action chính đã giải thích split payment.
+
+## 5. Evidence ID
+
+Chỉ được nộp evidence ID có thể dựng trực tiếp từ dữ liệu:
+
+```text
+order:<order_id>
+item:<order_id>:<order_item_id>
+payment:<order_id>:<payment_sequential>
+seller:<seller_id>
+policy:<root_cause_code>
+```
+
+Evidence của case gồm order, các item, các payment, seller chịu trách nhiệm nếu có và policy tương ứng. Evidence không tồn tại trong CSV hoặc sai định dạng bị tính là false positive.
+
+## 6. Output schema
+
+Mỗi input có một output tương ứng vào `output/` (tên file khớp với input):
+
+```json
+{
+  "case_id": "EC_001",
+  "case_assessment": {
+    "primary_issue": "late_delivery_seller",
+    "secondary_issues": ["multi_item_order", "split_payment"],
+    "case_status": "action_required",
+    "confidence": 0.92
+  },
+  "affected_entities": {
+    "order_ids": ["<order_id>"],
+    "item_ids": ["<order_id>:1"],
+    "seller_ids": ["<seller_id>"],
+    "payment_ids": ["<order_id>:1", "<order_id>:2"]
+  },
+  "customer_context": {
+    "customer_unique_id": "<customer_unique_id>",
+    "related_order_ids": ["<related_order_id>"]
+  },
+  "product_context": {
+    "product_ids": ["<product_id>"],
+    "category_names": ["<category_name>"]
+  },
+  "delivery_analysis": {
+    "delivered_at": "2018-03-31 15:23:33",
+    "estimated_delivery_at": "2018-03-28 00:00:00",
+    "carrier_handoff_at": "2018-03-15 21:33:51",
+    "delivery_variance_hours": 87.39,
+    "seller_handoff_analysis": [
+      {
+        "seller_id": "<seller_id>",
+        "shipping_limit_at": "2018-03-15 20:31:15",
+        "handoff_variance_hours": 1.04,
+        "late_handoff": true
+      }
+    ],
+    "late_handoff_seller_ids": ["<seller_id>"]
+  },
+  "payment_reconciliation": {
+    "currency": "BRL",
+    "item_total_brl": 194.0,
+    "freight_total_brl": 18.27,
+    "expected_total_brl": 212.27,
+    "payment_total_brl": 212.27,
+    "difference_brl": 0.0,
+    "reconciled": true,
+    "payment_types": ["credit_card", "voucher"]
+  },
+  "root_cause_analysis": {
+    "ranked_causes": [
+      { "cause_code": "SELLER_HANDOFF_AFTER_LIMIT", "rank": 1 }
+    ],
+    "responsible_parties": [
+      { "party_type": "seller", "party_id": "<seller_id>" }
+    ]
+  },
+  "evidence_ids": [
+    "order:<order_id>",
+    "item:<order_id>:1",
+    "payment:<order_id>:1",
+    "payment:<order_id>:2",
+    "seller:<seller_id>",
+    "policy:SELLER_HANDOFF_AFTER_LIMIT"
+  ],
+  "financial_resolution": {
+    "currency": "BRL",
+    "recommended_refund_brl": 18.27
+  },
+  "resolution_actions": [
+    "refund_freight",
+    "review_seller_handoff",
+    "verify_payment_allocation"
+  ]
+}
+```
+
+Giới hạn: tối đa 5 order ID, 5 item ID, 3 seller ID, 5 payment ID, 5 related order ID, 5 product ID, 5 category, 3 root causes, 3 responsible parties, 20 evidence và 5 actions. `confidence` nằm trong `[0, 1]`.
+
+`case_status` nhận một trong hai giá trị:
+
+- `action_required`: cần hoàn tiền.
+- `no_action`: không có khoản hoàn; chỉ cần giải thích hoặc bác bỏ claim.
+
+Các timestamp giữ nguyên định dạng trong CSV (`YYYY-MM-DD HH:MM:SS`) hoặc `null` nếu dữ liệu không có. Các array phải giữ thứ tự ổn định theo dữ liệu nguồn; riêng secondary issues và actions tuân theo thứ tự nghiệp vụ đã nêu.
+
+## 7. Gợi ý kiến trúc multi-agent
+
+Đây là gợi ý, bạn thoải mái tư duy thiết kế:
+
+- **Coordinator Agent**: nhận case, giao việc và tổng hợp output.
+- **Customer Agent**: xác định customer identity và lịch sử order.
+- **Order & Product Agent**: kiểm tra order, item, seller, product và category.
+- **Payment Agent**: tổng hợp payment row và đối soát với item + freight.
+- **Delivery Agent**: tính delivery variance và seller handoff variance.
+- **Policy Agent**: áp dụng `EC_POLICY_V2`, xác định taxonomy, responsibility, refund và actions.
+- **Verifier Agent**: kiểm tra ID, số tiền, null handling, array limit và schema trước khi ghi file.
+
+Điểm cốt lõi là nên có phân công, handoff và kiểm chứng giữa các agent; không có điểm cho việc chỉ đặt tên nhiều agent nhưng toàn bộ xử lý nằm trong một prompt duy nhất.
+
+## 8. Nộp bài và chấm điểm
+
+Nén folder `output/` thành file zip. Zip phải chứa đúng 50 JSON từ `EC_001.json` đến `EC_050.json`; không chứa các file lạ khác
+
+Điểm mỗi case là tổng có trọng số:
+
+| Thành phần                      | Trọng số |
+| ------------------------------- | -------: |
+| Primary và secondary issues     |      15% |
+| Affected entities               |      15% |
+| Customer và product context     |      15% |
+| Delivery analysis               |      15% |
+| Payment reconciliation          |      15% |
+| Root cause và evidence          |      15% |
+| Financial resolution và actions |      10% |
+
+Điểm cuối là trung bình của 50 case. Case bị hard gate nhận 0 điểm.
+
+Trong repo phải có thêm:
+
+- `architecture.md`: sơ đồ agent, vai trò, quyền truy cập và luồng handoff (đặt ở root repo)
+- `trace.jsonl`: trace chạy thật của 50 case (không append, chỉ cần lượt chạy mới nhất)
+- `metadata.json`: model, parameter size, framework và runtime
+
+## 9. Lưu ý
+
+1. Mỗi agent chỉ được sử dụng model dưới hoặc bằng **10B parameters**, chạy local hoặc qua provider tùy ý.
+2. Khi nộp bài, chỉ nén folder `output/` thành file zip; không đưa source code, `.env` hoặc các file audit vào zip này.
+3. Luôn commit toàn bộ source code lên repo trước khi nộp file output zip để chấm điểm.
+4. API key và secret phải đặt trong file `.env` và không được commit. Tên model sử dụng phải được khai báo rõ trong source code, đồng thời ghi lại trong `metadata.json` (Tức là model name không ghi vào .env, cho vào code để chấm)
