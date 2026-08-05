@@ -1,0 +1,22 @@
+[project]
+name = "ec-dispute-resolution"
+version = "0.1.0"
+description = "Multi-agent e-commerce dispute resolution for EC_POLICY_V2."
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+src = ["src", "tests"]
+

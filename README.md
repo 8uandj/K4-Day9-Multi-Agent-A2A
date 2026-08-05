@@ -1,5 +1,26 @@
 # K4 Day 09 - Multi-Agent E-commerce Dispute Resolution
 
+## 0. Cấu trúc repo
+
+```text
+.
+├── data/                 # CSV gốc của Olist, chỉ đọc
+├── docs/                 # Kiến trúc, workboard và báo cáo cá nhân
+├── input/                # 50 case EC_*.json
+├── logging/              # trace và metadata khi chạy pipeline
+├── output/               # JSON kết quả nộp bài
+├── src/ec_dispute/       # source code chính
+│   ├── agents/           # agent theo domain
+│   ├── tools/            # lookup/calculation deterministic
+│   ├── paths.py          # đường dẫn chuẩn toàn repo
+│   └── schemas.py        # Pydantic contracts T1-T6 và output
+├── tests/                # unit/regression tests
+└── pyproject.toml        # cấu hình package/test
+```
+
+Tài liệu kiến trúc nằm ở `docs/architecture.md`. Bảng chia việc chung nằm ở
+`docs/team_workboard.md`.
+
 ## 1. Bài toán
 
 Xây dựng một hệ thống multi-agent để điều tra 50 yêu cầu hỗ trợ của khách hàng trên dữ liệu Olist. Với mỗi case, hệ thống phải đối chiếu nhiều nguồn dữ liệu, xác định vấn đề chính và vấn đề phụ, bên chịu trách nhiệm, bằng chứng, khoản hoàn đề xuất và các hành động xử lý.
