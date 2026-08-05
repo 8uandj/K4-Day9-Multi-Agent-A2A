@@ -343,7 +343,7 @@ Mọi cạnh trong sơ đồ đều mang cùng một cấu trúc phong bì, vali
   "produced_at": "2026-08-05T14:22:31Z",
   "payload_type": "delivery_analysis",
   "payload": { "...": "khớp một nhánh của output schema" },
-  "provenance": ["orders:9b75cdaf...", "items:9b75cdaf...:1"],
+  "provenance": ["order:9b75cdaf...", "item:9b75cdaf...:1"],
   "tool_calls": ["compute_delivery_variance", "compute_handoff_variance"],
   "self_check": { "nulls_handled": true, "rounding_applied": true },
   "model": "qwen3:8b"
@@ -353,7 +353,12 @@ Mọi cạnh trong sơ đồ đều mang cùng một cấu trúc phong bì, vali
 `provenance` là trường bắt buộc và là thứ khiến chuỗi kiểm chứng khép kín: A7 đối chiếu
 mọi ID trong `evidence_ids` với hợp của tất cả `provenance` phía trên. Một ID xuất hiện ở
 output mà không có trong provenance nào là bằng chứng bịa — bị chặn ngay tại cổng, không
-lọt vào file nộp.
+lọt vào file nộp. Hàm `contracts.unsupported_evidence()` hiện thực đúng phép kiểm này.
+
+Provenance **dùng chung grammar với evidence ID** (`order:`, `item:`, `payment:`, `seller:`,
+`policy:`) và mở rộng thêm hai dạng chỉ dành cho provenance là `customer:` và `product:` —
+hai loại này agent đọc được nhưng không phải evidence hợp lệ theo §5 của đề. Nhờ dùng chung
+grammar, phép kiểm của A7 rút gọn còn một phép bao hàm tập hợp.
 
 ### 5.3. Điều kiện chuyển stage
 
@@ -428,9 +433,10 @@ việc của chúng đã được tool gánh phần khó.
 
 ### 6.5. Khai báo bắt buộc
 
-Tên model đặt trong source code (`config/models.py`, hằng `MODEL_REGISTRY`), **không** đặt
-trong `.env`. `.env` chỉ chứa API key và base URL. `logging/metadata.json` mirror lại
-registry này:
+Tên model đặt trong source code (`src/ec_dispute/config.py`, hằng `MODEL_REGISTRY`),
+**không** đặt trong `.env`. `.env` chỉ chứa API key và base URL. `config.assert_parameter_ceiling()`
+chặn cứng nếu có agent vượt 10B, và `logging/metadata.json` được `trace.start_run()` sinh
+lại từ chính registry đó nên hai nơi không thể lệch nhau:
 
 ```json
 {

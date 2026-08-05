@@ -1,0 +1,76 @@
+"""Frozen contracts for the EC_POLICY_V2 pipeline.
+
+``output_schema`` = what the grader reads. ``envelope`` = what agents pass to each other.
+Import from here so a future file split does not ripple through the codebase::
+
+    from ec_dispute.contracts import A2AEnvelope, CandidateOutput, POLICY_RULES
+"""
+
+from ec_dispute.contracts.envelope import (
+    CONTRACT_VERSION,
+    COORDINATOR,
+    A2AEnvelope,
+    AgentName,
+    CaseEnvelopePayload,
+    CaseInput,
+    CustomerRequest,
+    InvestigationScope,
+    OrderFacts,
+    OrderItemFact,
+    PAYLOAD_MODELS,
+    PAYLOAD_PRODUCER,
+    PAYLOAD_STAGES,
+    PayloadType,
+    PolicyVersion,
+    SelfCheck,
+    SellerFact,
+    Stage,
+    ValidationResult,
+    Violation,
+    build_envelope_id,
+    unsupported_evidence,
+    utc_now_z,
+)
+from ec_dispute.contracts.output_schema import (
+    FOLLOW_UP_ACTION_RANK,
+    LIMITS,
+    PAYMENT_TYPES_DEDUPED,
+    POLICY_RULES,
+    PRIMARY_ACTIONS,
+    PRIMARY_ISSUE_PRECEDENCE,
+    RECONCILIATION_TOLERANCE_BRL,
+    SECONDARY_ISSUE_ORDER,
+    AffectedEntities,
+    CandidateOutput,
+    CaseAssessment,
+    CaseStatus,
+    CauseCode,
+    CustomerContext,
+    DeliveryAnalysis,
+    FinancialResolution,
+    PartyType,
+    PaymentReconciliation,
+    PaymentType,
+    PolicyRule,
+    PrimaryIssue,
+    ProductContext,
+    RankedCause,
+    ResolutionAction,
+    ResponsibleParty,
+    RootCauseAnalysis,
+    SecondaryIssue,
+    SellerHandoffAnalysis,
+    StrictModel,
+    Verdict,
+    check_resolution_consistency,
+    item_entity_id,
+    item_evidence_id,
+    order_evidence_id,
+    payment_entity_id,
+    payment_evidence_id,
+    policy_evidence_id,
+    seller_evidence_id,
+    validate_reference,
+)
+
+__all__ = [name for name in dir() if not name.startswith("_")]
