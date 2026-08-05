@@ -23,7 +23,7 @@ python3 -m venv .venv && .venv/bin/python -m pip install -e ".[dev]" && .venv/bi
 | Người | Vai trò | Sở hữu | File/module | Trọng số điểm | Status |
 | --- | --- | --- | --- | ---: | --- |
 | Thành viên 1 | Decision & Control | Orchestrator, policy engine, verifier, LLM client, trace, output writer | `orchestrator.py`, `policy_engine.py`, `verifier.py`, `llm_client.py`, `agents/base.py`, `agents/coordinator.py`, `run.py` | 40% | **DONE** |
-| Thành viên 2 | Data & Entities | Load CSV, fact base order/product, lịch sử khách, evidence + assembly | `data_store.py`, `tools/lookups.py`, `agents/order_product.py`, `agents/customer.py`, `agents/evidence.py` | 30% | TODO |
+| Thành viên 2 | Data & Entities | Load CSV, fact base order/product, lịch sử khách, evidence + assembly | `data_store.py`, `tools/lookups.py`, `agents/order_product.py`, `agents/customer.py`, `agents/evidence.py` | 30% | **DONE** |
 | Thành viên 3 | Analysis | Reconciliation tiền, delivery/handoff variance, regression harness | `tools/calculations.py`, `agents/payment.py`, `agents/delivery.py`, `qa/golden_check.py` | 30% | TODO |
 
 Trọng số điểm là phần chấm mà người đó chịu trách nhiệm trực tiếp — xem `README.md` mục 8.
@@ -67,7 +67,7 @@ Edge case đã đo trên dữ liệu thật:
 | Mốc | Người | Điều kiện hoàn thành | Status |
 | --- | --- | --- | --- |
 | M1 — Contract freeze | TV1 | `contracts/` import được, 44 test xanh, 50/50 case thật validate | **DONE** |
-| M2 — Data lookup ready | TV2 | `build_order_facts` + `build_customer_context` chạy đúng với `EC_001` và `EC_012` | TODO |
+| M2 — Data lookup ready | TV2 | `build_order_facts` + `build_customer_context` chạy đúng với `EC_001` và `EC_012` | **DONE** |
 | M3 — Calculation ready | TV3 | Tiền và variance đúng 2 chữ số, null đúng trên 4 case golden | TODO |
 | M4 — Policy ready | TV1 | 6 primary issue + thứ tự secondary/action khớp `POLICY_RULES` | **DONE** |
 | M5 — End-to-end 1 case | Cả nhóm | `EC_001` chạy hết pipeline, `CandidateOutput` validate | TODO |
@@ -82,11 +82,12 @@ Edge case đã đo trên dữ liệu thật:
 | --- | --- | --- | --- | --- |
 | Định nghĩa Pydantic contracts | TV1 | `contracts/envelope.py`, `contracts/output_schema.py` | **DONE** | Đã freeze, có test âm/dương |
 | Scaffold module + stub | TV1 | `src/ec_dispute/**` | **DONE** | 15 stub import sạch |
-| `DataStore` read-only | TV2 | `data_store.py` | TODO | Không load `reviews`/`geolocation` — policy không dùng |
-| `OrderFacts` từ `claimed_order_id` | TV2 | `tools/lookups.py` | TODO | Facts **không cắt** theo trần; cắt ở A6 |
-| `CustomerContext` | TV2 | `tools/lookups.py` | TODO | Related order không được lọt vào `affected_entities` |
-| Evidence + assembly | TV2 | `agents/evidence.py` | TODO | Dùng `item_evidence_id()` etc., đừng nối chuỗi tay |
-| `PaymentReconciliation` | TV3 | `tools/calculations.py` | TODO | `abs(difference) <= 0.10` là reconciled (biên tính là đạt) |
+| `DataStore` read-only | TV2 | `data_store.py` | **DONE** | Không load `reviews`/`geolocation`; `get_store()` là singleton |
+| `OrderFacts` từ `claimed_order_id` | TV2 | `tools/lookups.py` | **DONE** | Facts **không cắt** theo trần; cắt ở A6 |
+| `CustomerContext` | TV2 | `tools/lookups.py` | **DONE** | Related order không lọt vào `affected_entities` |
+| Agent A1 + A2 | TV2 | `agents/order_product.py`, `agents/customer.py` | **DONE** | Emit envelope T2/T3 hợp lệ |
+| Evidence + assembly (A6) | TV2 | `agents/evidence.py` | **DONE** | Dùng builder của contract, không nối chuỗi tay |
+| `PaymentReconciliation` | TV3 | `tools/calculations.py` | TODO | `abs(difference) <= 0.10` là reconciled (biên tính là đạt). **Bắt buộc: A3 phải ghi `payment:<order_id>:<seq>` vào `provenance`** — xem "Giao ước liên module" |
 | `DeliveryAnalysis` | TV3 | `tools/calculations.py` | TODO | So với `shipping_limit` **sớm nhất** của từng seller |
 | Policy engine | TV1 | `policy_engine.py` | **DONE** | Đọc `POLICY_RULES`, áp precedence và confidence rubric |
 | LLM client + agent runtime | TV1 | `llm_client.py`, `agents/base.py` | **DONE** | OpenAI-compatible JSON client, `temperature=0`, `seed=42` |
@@ -109,6 +110,30 @@ Edge case đã đo trên dữ liệu thật:
    ```
 3. **`.gitignore` đang ignore `output/*.json`.** Cân nhắc bỏ dòng đó trước khi nộp — README mục 9 yêu cầu commit toàn bộ source, và có output trong repo giúp đối chiếu khi tranh chấp điểm.
 
+## Giao ước liên module (đọc trước khi code phần của mình)
+
+Ba ràng buộc đã hiện thực trong code, không phải quy ước miệng:
+
+**1. TV3 → A3 phải khai `payment:` vào provenance.**
+`PaymentReconciliation` là section được chấm nên chỉ chứa tổng tiền, không chứa
+`payment_sequential`. A6 lấy `affected_entities.payment_ids` từ **provenance của A3**. Vậy A3
+bắt buộc phải ghi mọi row nó cộng vào provenance:
+
+```python
+provenance = [payment_evidence_id(order_id, int(p["payment_sequential"])) for p in payment_rows]
+```
+
+Nếu quên: A6 raise ngay kèm tên A3 (`payment_ids cannot be built`), không im lặng trả mảng rỗng.
+
+**2. TV3 lấy tổng tiền hàng từ artifact của A1, không đọc lại `order_items`.**
+`facts.items[].price_brl` và `.freight_value_brl` đã làm tròn 2 chữ số sẵn. Đọc lại CSV sẽ
+làm mất tác dụng của cross-check giữa A1 và A3.
+
+**3. TV1 → `agents/base.py` đã có `emit()` và `check_tools()`.**
+TV2 hiện thực giúp vì A1/A2/A6 bị chặn. Chỉ là plumbing contract — không có orchestration,
+retry hay LLM. Phần scheduling/repair trong `orchestrator.py` vẫn của TV1. `check_tools()`
+biến ma trận quyền thành thứ chạy được: gọi tool ngoài grant là raise `ToolPermissionError`.
+
 ## Quyết định treo (cần chốt khi có tín hiệu từ leaderboard)
 
 | Vấn đề | Đã chọn | Lý do | Ảnh hưởng nếu sai | Cách đổi |
@@ -116,6 +141,7 @@ Edge case đã đo trên dữ liệu thật:
 | `payment_types` có dedupe không? | **Có dedupe**, giữ thứ tự `payment_sequential` | Tên field là "types"; ví dụ trong README không phân định được | 4/50 case (`EC_010` `EC_015` `EC_016` `EC_042`), ~1.2% tổng điểm | Đổi `PAYMENT_TYPES_DEDUPED = False` trong `output_schema.py` |
 | `item_total_brl`/`freight_total_brl` khi order không có item | **`null`** | README chỉ nói `expected`/`difference`/`reconciled` là null, nhưng để `0.0` sẽ mâu thuẫn với `expected = item + freight` | 6/50 case | Sửa validator `all_null_or_all_present` |
 | Làm tròn | **`round()` của Python** (banker's + nhị phân) | Grader gần như chắc chắn cũng viết bằng Python | Sai lệch 0.01 rải rác | Đổi sang `Decimal` half-up trong `_round2` |
+| `category_names` tiếng Bồ hay tiếng Anh? | **Tiếng Bồ** (cột gốc `product_category_name`) | 2 category trong bảng products không có dòng trong file dịch → dịch sẽ mất hoặc bịa giá trị. README §5 cũng yêu cầu dựng trực tiếp từ dữ liệu | Toàn bộ trường `category_names`, ~1/3 của 15% "customer & product context" | Đổi `CATEGORY_NAMES_TRANSLATED = True` trong `data_store.py` |
 
 ---
 
@@ -157,6 +183,9 @@ Contract reject nghĩa là **output sai, không phải contract sai**. Đừng n
 | Thời điểm | Người update | Nội dung |
 | --- | --- | --- |
 | 2026-08-05 | Hoàng Hưng | Tạo `schemas.py` và workboard chia việc ban đầu. |
-| 2026-08-05 | Khanh | Tách `schemas.py` → `contracts/envelope.py` + `contracts/output_schema.py` và freeze. `schemas.py` giữ lại làm shim re-export nên code cũ không gãy. Thêm `POLICY_RULES`, evidence builder, routing table, 44 test (âm + dương). Verify: 50/50 case thật đi qua contract, 0 rejection. |
-| 2026-08-05 | Khanh | Scaffold 22 file: `config.py` (MODEL_REGISTRY ≤10B), `trace.py`, `output_writer.py` chạy được; 15 stub còn lại có signature + owner. Thêm `run.py`, `.env.example`, `prompts/_TEMPLATE.md`. |
+| 2026-08-05 | Khánh | Tách `schemas.py` → `contracts/envelope.py` + `contracts/output_schema.py` và freeze. `schemas.py` giữ lại làm shim re-export nên code cũ không gãy. Thêm `POLICY_RULES`, evidence builder, routing table, 44 test (âm + dương). Verify: 50/50 case thật đi qua contract, 0 rejection. |
+| 2026-08-05 | Khánh | Scaffold 22 file: `config.py` (MODEL_REGISTRY ≤10B), `trace.py`, `output_writer.py` chạy được; 15 stub còn lại có signature + owner. Thêm `run.py`, `.env.example`, `prompts/_TEMPLATE.md`. |
 | 2026-08-05 | Codex | Hoàn thành phần TV1: policy engine deterministic, verifier gate, agent envelope runtime, LLM client OpenAI-compatible, coordinator T1, run/orchestrator wiring, prompt A0/A5/A7. |
+| 2026-08-05 | Khánh | **Xong toàn bộ phần TV2.** `DataStore` (7/9 CSV, bỏ reviews + geolocation), `tools/lookups.py`, agent A1/A2/A6, prompt cho 3 agent, 29 test mới. Verify: A1→A2→A6 chạy hết 50/50 case; 0 evidence ID không resolve được. Thêm 3 giao ước liên module — TV3 đọc mục "Giao ước liên module" trước khi viết `calculations.py`. |
+| 2026-08-05 | Khánh | Chốt `CATEGORY_NAMES_TRANSLATED = False` (dùng tên category gốc tiếng Bồ). Lý do: 2 category trong bảng products không có dòng dịch, dịch sẽ mất hoặc bịa giá trị. |
+| 2026-08-05 | Khánh | Resolve rebase TV1↔TV2 ở `agents/base.py`: giữ typing `AgentName/Stage/PayloadType` và `model_name` của TV1, thêm `__init__(store, llm)` + `check_tools()` của TV2. `allowed_tools` rỗng = chưa khai báo = không chặn, nên `CoordinatorAgent` không gãy. Thêm `assemble_candidate_output()` khớp đúng chữ ký `orchestrator.run_case` đang gọi. |
