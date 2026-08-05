@@ -7,7 +7,7 @@ import asyncio
 
 from pydantic import BaseModel
 
-from ec_dispute.config import MODEL_BY_AGENT, api_key, base_url
+from ec_dispute.config import FALLBACK_MODEL_BY_AGENT, MODEL_BY_AGENT, api_key, base_url
 from ec_dispute.llm_client import LLMClient
 
 
@@ -26,15 +26,18 @@ async def main() -> None:
 
     spec = MODEL_BY_AGENT[args.agent]
     client = LLMClient(spec)
-    response = await client.complete_json(
-        system="Return only JSON.",
-        user='Return exactly {"ok": true, "provider": "api"}.',
-        response_model=SmokeResponse,
-    )
-
     print(f"base_url={base_url()}")
     print(f"agent={args.agent}")
     print(f"model={spec.model}")
+    print(f"fallback_model={FALLBACK_MODEL_BY_AGENT.get(args.agent)}")
+    try:
+        response = await client.complete_json(
+            system="Return only JSON.",
+            user='Return exactly {"ok": true, "provider": "api"}.',
+            response_model=SmokeResponse,
+        )
+    except Exception as exc:
+        raise SystemExit(f"api_test=failed\nerror={exc}") from exc
     print(f"response={response.model_dump()}")
 
 

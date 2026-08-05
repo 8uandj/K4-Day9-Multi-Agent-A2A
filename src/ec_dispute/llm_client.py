@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 
 from pydantic import ValidationError
 
-from ec_dispute.config import GENERATION, api_key, base_url
+from ec_dispute.config import FALLBACK_MODEL_BY_AGENT, GENERATION, api_key, base_url
 from ec_dispute.config import ModelSpec
 
 
@@ -27,10 +27,20 @@ class LLMClient:
         """Call the model and parse the reply into ``response_model``. Retries once on schema error."""
         last_error: Exception | None = None
         retry_hint = ""
+        model = self.spec.model
         for _ in range(2):
             try:
-                content = await asyncio.to_thread(self._chat_completion, system, user + retry_hint, response_model)
+                content = await asyncio.to_thread(self._chat_completion, system, user + retry_hint, response_model, model)
+                if content is None:
+                    raise ValueError("LLM response content is empty")
                 return self._parse_response(content, response_model)
+            except RuntimeError as exc:
+                fallback = FALLBACK_MODEL_BY_AGENT.get(self.spec.agent)
+                if _is_openrouter_credit_error(exc) and fallback and model != fallback:
+                    model = fallback
+                    last_error = exc
+                    continue
+                raise
             except (json.JSONDecodeError, ValidationError, ValueError) as exc:
                 last_error = exc
                 retry_hint = (
@@ -39,9 +49,9 @@ class LLMClient:
                 )
         raise ValueError(f"{self.spec.agent} failed to return valid {response_model.__name__}") from last_error
 
-    def _chat_completion(self, system: str, user: str, response_model: type) -> str:
+    def _chat_completion(self, system: str, user: str, response_model: type, model: str) -> str | None:
         payload = {
-            "model": self.spec.model,
+            "model": model,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
@@ -73,7 +83,8 @@ class LLMClient:
             raise RuntimeError(f"LLM HTTP {exc.code}: {detail}") from exc
         except URLError as exc:
             raise RuntimeError(f"LLM request failed: {exc.reason}") from exc
-        return body["choices"][0]["message"]["content"]
+        message = body["choices"][0]["message"]
+        return message.get("content")
 
     @staticmethod
     def _parse_response(content: str, response_model: type) -> object:
@@ -88,3 +99,8 @@ class LLMClient:
         if hasattr(response_model, "model_validate"):
             return response_model.model_validate(payload)
         return payload
+
+
+def _is_openrouter_credit_error(exc: RuntimeError) -> bool:
+    message = str(exc).lower()
+    return "llm http 402" in message and "insufficient credits" in message

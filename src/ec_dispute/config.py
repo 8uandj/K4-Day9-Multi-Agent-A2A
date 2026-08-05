@@ -57,6 +57,12 @@ MODEL_REGISTRY: tuple[ModelSpec, ...] = (
 
 MODEL_BY_AGENT: dict[str, ModelSpec] = {spec.agent: spec for spec in MODEL_REGISTRY}
 
+# OpenRouter free-tier fallback. It is useful for smoke tests and low-volume development
+# when the paid account has no credits left. Free routing has low rate limits and the exact
+# underlying model may change, so keep MODEL_REGISTRY above as the source of truth for final runs.
+OPENROUTER_FREE_MODEL = "openrouter/free"
+FALLBACK_MODEL_BY_AGENT: dict[str, str] = {spec.agent: OPENROUTER_FREE_MODEL for spec in MODEL_REGISTRY}
+
 # Deterministic decoding: same input must produce the same output on a re-run.
 GENERATION = {"temperature": 0.0, "top_p": 1.0, "seed": 42}
 
@@ -83,6 +89,7 @@ def metadata_document() -> dict:
         "runtime": RUNTIME,
         "generation": GENERATION,
         "models": [asdict(spec) for spec in MODEL_REGISTRY],
+        "fallback_models": FALLBACK_MODEL_BY_AGENT,
         "max_parameters_b": max(spec.parameters_b for spec in MODEL_REGISTRY),
         "constraint": f"<={PARAMETER_CEILING_B}B per agent - satisfied",
     }

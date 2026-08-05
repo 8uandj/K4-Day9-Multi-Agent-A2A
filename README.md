@@ -44,6 +44,10 @@ PYTHONPATH=src .venv/bin/python scripts/test_llm_api.py --agent A0_coordinator
 PYTHONPATH=src .venv/bin/python scripts/test_llm_api.py --agent A7_verifier
 ```
 
+Nếu OpenRouter trả `402 insufficient credits`, client sẽ thử fallback sang `openrouter/free`.
+Fallback này phù hợp smoke test/kiểm tra luồng, còn final run nên dùng model chính trong
+`src/ec_dispute/config.py`.
+
 ## 1. Bài toán
 
 Xây dựng một hệ thống multi-agent để điều tra 50 yêu cầu hỗ trợ của khách hàng trên dữ liệu Olist. Với mỗi case, hệ thống phải đối chiếu nhiều nguồn dữ liệu, xác định vấn đề chính và vấn đề phụ, bên chịu trách nhiệm, bằng chứng, khoản hoàn đề xuất và các hành động xử lý.
