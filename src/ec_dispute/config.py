@@ -82,13 +82,33 @@ def assert_parameter_ceiling() -> None:
             raise ValueError(f"{spec.agent} uses {spec.model} at {spec.parameters_b}B > {PARAMETER_CEILING_B}B")
 
 
+POLICY_VERSION = "EC_POLICY_V2"
+
+#: Deterministic tools the agents may call. Every graded number originates in one of these;
+#: the models choose which tool to call and how to read the result, they never do the
+#: arithmetic themselves. Declared here so metadata.json reports tools, models and policy
+#: version from a single source instead of three hand-maintained lists.
+TOOLS: tuple[dict[str, str], ...] = (
+    {"name": "build_order_facts", "agent": "A1_order_product", "module": "ec_dispute.tools.lookups"},
+    {"name": "build_customer_context", "agent": "A2_customer", "module": "ec_dispute.tools.lookups"},
+    {"name": "build_payment_reconciliation", "agent": "A3_payment", "module": "ec_dispute.tools.calculations"},
+    {"name": "build_delivery_analysis", "agent": "A4_delivery", "module": "ec_dispute.tools.calculations"},
+    {"name": "apply_policy", "agent": "A5_policy", "module": "ec_dispute.policy_engine"},
+    {"name": "assemble_output", "agent": "A6_evidence", "module": "ec_dispute.agents.evidence"},
+    {"name": "verify_candidate", "agent": "A7_verifier", "module": "ec_dispute.verifier"},
+    {"name": "key_exists", "agent": "A7_verifier", "module": "ec_dispute.data_store"},
+)
+
+
 def metadata_document() -> dict:
     assert_parameter_ceiling()
     return {
+        "policy_version": POLICY_VERSION,
         "framework": FRAMEWORK,
         "runtime": RUNTIME,
         "generation": GENERATION,
         "models": [asdict(spec) for spec in MODEL_REGISTRY],
+        "tools": [dict(tool) for tool in TOOLS],
         "fallback_models": FALLBACK_MODEL_BY_AGENT,
         "max_parameters_b": max(spec.parameters_b for spec in MODEL_REGISTRY),
         "constraint": f"<={PARAMETER_CEILING_B}B per agent - satisfied",
