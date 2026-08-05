@@ -4,10 +4,10 @@
 
 | Thông tin       | Nội dung                                            |
 | --------------- | --------------------------------------------------- |
-| Họ và tên       | Đặng Hữu Khánh                                      |
-| MSSV            | 01104                                               |
+| Họ và tên       | Đặng Hữu Khanh                                      |
+| MSSV            | 2A202601104                                               |
 | Khóa/Lớp        | K4 / D305                                           |
-| Vai trò chính   | Thành viên 2 — Data & Entities (tầng dữ liệu, thực thể, bằng chứng) |
+| Vai trò chính   | Data & Entities (tầng dữ liệu, thực thể, bằng chứng) |
 | Ngày hoàn thành | 2026-08-05                                          |
 
 ## 2. Vai trò và phạm vi công việc
@@ -115,15 +115,5 @@ Phần của tôi là nền dữ liệu: đọc CSV, dựng thực thể của c
 
 5. **Căn cứ để coi là thành công:** verifier pass cả 50 case, chạy lại ra file giống hệt từng byte, và điểm trên trình chấm. Hiện đạt 67.4696 với phân rã 7 nhóm gần bằng nhau (65.95–68.44) — một dấu hiệu cho thấy khoảng một phần ba số case đang bị mất điểm toàn diện chứ không phải một trường cụ thể sai, và nhóm chưa xác định được nguyên nhân trước khi hết giờ.
 
-## 8. Cam kết của thành viên
-
-Đánh dấu sau khi tự kiểm tra:
-
-- [ ] Nội dung báo cáo phản ánh đúng phần việc và mức hiểu của tôi.
-- [ ] Tôi có thể giải thích luồng end-to-end, không chỉ module mình phụ trách.
-- [ ] Tôi không ghi "đã chạy thành công" cho phần chưa được kiểm chứng.
-- [ ] Báo cáo không chứa `.env`, API key, token hoặc secret.
-- [ ] Báo cáo này không phải bản sao nguyên văn của báo cáo nhóm hoặc báo cáo thành viên khác.
-
-**Họ và tên:** Đặng Hữu Khánh
+**Họ và tên:** Đặng Hữu Khanh
 **Ngày xác nhận:** 2026-08-05

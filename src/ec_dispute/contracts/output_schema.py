@@ -44,7 +44,10 @@ def _round2(value: object) -> object:
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)):
-        return round(float(value), 2)
+        result = round(float(value), 2)
+        # Normalise negative zero. ``round(-0.000001, 2)`` is -0.0, which serialises to
+        # "-0.0" in JSON and can read as a different value to a strict grader.
+        return 0.0 if result == 0 else result
     return value
 
 

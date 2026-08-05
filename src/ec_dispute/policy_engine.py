@@ -111,7 +111,11 @@ def _actions(
     elif primary == "late_delivery_logistics":
         actions.append("review_carrier_delay")
 
-    if POLICY_RULES[primary].case_status == "action_required":
+    # Only a FULL refund needs its completion verified. The README section 6 worked example
+    # is this very order (eb09635680fadffb33358e40b05c9029) and its action list is
+    # ["refund_freight", "review_seller_handoff", "verify_payment_allocation"] — no
+    # verify_refund_completion, even though a freight refund is recommended.
+    if POLICY_RULES[primary].primary_action == "issue_full_refund":
         actions.append("verify_refund_completion")
     if len(facts.seller_ids) >= 2:
         actions.append("coordinate_multi_seller_case")
