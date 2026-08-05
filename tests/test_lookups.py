@@ -14,6 +14,7 @@ import json
 import pytest
 
 from ec_dispute.agents.base import ToolPermissionError
+from ec_dispute.config import MODEL_BY_AGENT, PARAMETER_CEILING_B
 from ec_dispute.agents.customer import CustomerAgent
 from ec_dispute.agents.evidence import EvidenceAgent, payment_sequentials_from_provenance
 from ec_dispute.agents.order_product import OrderProductAgent
@@ -221,8 +222,13 @@ def test_a1_emits_a_valid_t2_envelope(store: DataStore) -> None:
     envelope = OrderProductAgent(store=store).run(load_case("EC_001"))
     assert envelope.stage == "T2" and envelope.payload_type == "order_facts"
     assert envelope.from_agent == "A1_order_product"
-    assert envelope.model == "qwen3:8b"
     assert envelope.envelope_id.startswith("EC_001#T2#")
+    # Read the name from the registry rather than pinning a tag: the same model is called
+    # "qwen3:8b" on Ollama and "qwen/qwen3-8b" on OpenRouter, and swapping providers must
+    # not turn the test suite red. What the lab actually constrains is the size, below.
+    spec = MODEL_BY_AGENT["A1_order_product"]
+    assert envelope.model == spec.model
+    assert spec.parameters_b <= PARAMETER_CEILING_B
 
 
 def test_a2_emits_a_valid_t3_envelope(store: DataStore) -> None:
