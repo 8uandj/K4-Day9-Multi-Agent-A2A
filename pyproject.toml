@@ -5,11 +5,13 @@ description = "Multi-agent e-commerce dispute resolution for EC_POLICY_V2."
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "ruff>=0.6",
 ]
 
 [tool.pytest.ini_options]
@@ -19,4 +21,3 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 120
 src = ["src", "tests"]
-

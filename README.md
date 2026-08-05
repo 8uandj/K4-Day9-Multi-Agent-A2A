@@ -21,6 +21,29 @@
 Tài liệu kiến trúc nằm ở `docs/architecture.md`. Bảng chia việc chung nằm ở
 `docs/team_workboard.md`.
 
+## 0.1. Setup API
+
+Tạo môi trường:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+```
+
+Tạo `.env` từ `.env.example`, rồi điền key:
+
+```bash
+LLM_BASE_URL=https://openrouter.ai/api/v1
+LLM_API_KEY=sk-or-v1-...
+```
+
+Test API:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/test_llm_api.py --agent A0_coordinator
+PYTHONPATH=src .venv/bin/python scripts/test_llm_api.py --agent A7_verifier
+```
+
 ## 1. Bài toán
 
 Xây dựng một hệ thống multi-agent để điều tra 50 yêu cầu hỗ trợ của khách hàng trên dữ liệu Olist. Với mỗi case, hệ thống phải đối chiếu nhiều nguồn dữ liệu, xác định vấn đề chính và vấn đề phụ, bên chịu trách nhiệm, bằng chứng, khoản hoàn đề xuất và các hành động xử lý.
