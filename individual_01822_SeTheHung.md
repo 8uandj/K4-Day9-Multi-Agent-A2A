@@ -2,13 +2,13 @@
 
 ## 1. Thông tin cá nhân
 
-| Thông tin       | Nội dung                                          |
-| --------------- | ------------------------------------------------- |
-| Họ và tên       | Sẻ Thế Hưng                                       |
-| MSSV            | 01822                                             |
-| Khóa/Lớp        | K4                                                |
-| Vai trò chính   | Thành viên 3 — Analysis (đối soát thanh toán, phân tích giao vận) |
-| Ngày hoàn thành | 2026-08-05                                        |
+| Thông tin       | Nội dung                                           |
+| -----------------| ----------------------------------------------------|
+| Họ và tên       | Sẻ Thế Hưng                                        |
+| MSSV            | 2A202601822                                        |
+| Khóa/Lớp        | K4                                                 |
+| Vai trò chính   | Analysis (đối soát thanh toán, phân tích giao vận) |
+| Ngày hoàn thành | 2026-08-05                                         |
 
 ## 2. Vai trò và phạm vi công việc
 
@@ -109,16 +109,6 @@ Phần của tôi trả lời hai câu hỏi định lượng của mỗi case: 
 4. **Vì sao dùng cùng một tập test cho mọi biến thể:** nhóm chạy A/B để dò các chỗ đề bài nói mơ hồ. Chỉ khi giữ nguyên 50 case thì chênh lệch điểm mới quy được về đúng cái vừa sửa.
 
 5. **Căn cứ để coi là thành công:** với phần của tôi là hai mục `delivery_analysis` và `payment_reconciliation` khớp ví dụ chuẩn trong README, cộng với `assert_rerun_is_identical` không raise — nghĩa là không có gì bất định lọt vào phép tính. Ở mức cả nhóm là điểm trên trình chấm, hiện 67.4696.
-
-## 8. Cam kết của thành viên
-
-Đánh dấu sau khi tự kiểm tra:
-
-- [ ] Nội dung báo cáo phản ánh đúng phần việc và mức hiểu của tôi.
-- [ ] Tôi có thể giải thích luồng end-to-end, không chỉ module mình phụ trách.
-- [ ] Tôi không ghi "đã chạy thành công" cho phần chưa được kiểm chứng.
-- [ ] Báo cáo không chứa `.env`, API key, token hoặc secret.
-- [ ] Báo cáo này không phải bản sao nguyên văn của báo cáo nhóm hoặc báo cáo thành viên khác.
 
 **Họ và tên:** Sẻ Thế Hưng
 **Ngày xác nhận:** 2026-08-05
