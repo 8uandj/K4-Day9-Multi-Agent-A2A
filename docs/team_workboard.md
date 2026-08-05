@@ -22,7 +22,7 @@ python3 -m venv .venv && .venv/bin/python -m pip install -e ".[dev]" && .venv/bi
 
 | Người | Vai trò | Sở hữu | File/module | Trọng số điểm | Status |
 | --- | --- | --- | --- | ---: | --- |
-| Thành viên 1 | Decision & Control | Orchestrator, policy engine, verifier, LLM client, trace, output writer | `orchestrator.py`, `policy_engine.py`, `verifier.py`, `llm_client.py`, `agents/base.py`, `agents/coordinator.py`, `run.py` | 40% | DOING |
+| Thành viên 1 | Decision & Control | Orchestrator, policy engine, verifier, LLM client, trace, output writer | `orchestrator.py`, `policy_engine.py`, `verifier.py`, `llm_client.py`, `agents/base.py`, `agents/coordinator.py`, `run.py` | 40% | **DONE** |
 | Thành viên 2 | Data & Entities | Load CSV, fact base order/product, lịch sử khách, evidence + assembly | `data_store.py`, `tools/lookups.py`, `agents/order_product.py`, `agents/customer.py`, `agents/evidence.py` | 30% | TODO |
 | Thành viên 3 | Analysis | Reconciliation tiền, delivery/handoff variance, regression harness | `tools/calculations.py`, `agents/payment.py`, `agents/delivery.py`, `qa/golden_check.py` | 30% | TODO |
 
@@ -69,7 +69,7 @@ Edge case đã đo trên dữ liệu thật:
 | M1 — Contract freeze | TV1 | `contracts/` import được, 44 test xanh, 50/50 case thật validate | **DONE** |
 | M2 — Data lookup ready | TV2 | `build_order_facts` + `build_customer_context` chạy đúng với `EC_001` và `EC_012` | TODO |
 | M3 — Calculation ready | TV3 | Tiền và variance đúng 2 chữ số, null đúng trên 4 case golden | TODO |
-| M4 — Policy ready | TV1 | 6 primary issue + thứ tự secondary/action khớp `POLICY_RULES` | TODO |
+| M4 — Policy ready | TV1 | 6 primary issue + thứ tự secondary/action khớp `POLICY_RULES` | **DONE** |
 | M5 — End-to-end 1 case | Cả nhóm | `EC_001` chạy hết pipeline, `CandidateOutput` validate | TODO |
 | M6 — End-to-end 50 case | Cả nhóm | Đủ 50 file output, verifier pass, trace có handoff thật | TODO |
 | M7 — Reproducibility | TV3 | Chạy lại 50 case ra file byte-identical | TODO |
@@ -88,11 +88,11 @@ Edge case đã đo trên dữ liệu thật:
 | Evidence + assembly | TV2 | `agents/evidence.py` | TODO | Dùng `item_evidence_id()` etc., đừng nối chuỗi tay |
 | `PaymentReconciliation` | TV3 | `tools/calculations.py` | TODO | `abs(difference) <= 0.10` là reconciled (biên tính là đạt) |
 | `DeliveryAnalysis` | TV3 | `tools/calculations.py` | TODO | So với `shipping_limit` **sớm nhất** của từng seller |
-| Policy engine | TV1 | `policy_engine.py` | TODO | Đọc `POLICY_RULES`, đừng hardcode lại bảng |
-| LLM client + agent runtime | TV1 | `llm_client.py`, `agents/base.py` | TODO | `temperature=0`, `seed=42` |
-| Verifier gate | TV1 | `verifier.py` | TODO | 6 nhóm check, gắn `blamed_agent` |
+| Policy engine | TV1 | `policy_engine.py` | **DONE** | Đọc `POLICY_RULES`, áp precedence và confidence rubric |
+| LLM client + agent runtime | TV1 | `llm_client.py`, `agents/base.py` | **DONE** | OpenAI-compatible JSON client, `temperature=0`, `seed=42` |
+| Verifier gate | TV1 | `verifier.py` | **DONE** | Schema/provenance/key-index/product checks, gắn `blamed_agent` |
 | Regression + submission gate | TV3 | `qa/golden_check.py` | TODO | `missing_case_ids()` phải rỗng trước khi zip |
-| Prompt cho từng agent | Mỗi owner | `prompts/<agent>.md` | TODO | Copy từ `prompts/_TEMPLATE.md` |
+| Prompt cho từng agent | Mỗi owner | `prompts/<agent>.md` | TODO | TV1 đã có `A0_coordinator.md`, `A5_policy.md`, `A7_verifier.md`; còn TV2/TV3 |
 | Báo cáo cá nhân | Mỗi người | `docs/individual/*.md` | TODO | Viết dần, đừng để 15 phút cuối |
 
 ---
@@ -156,6 +156,7 @@ Contract reject nghĩa là **output sai, không phải contract sai**. Đừng n
 
 | Thời điểm | Người update | Nội dung |
 | --- | --- | --- |
-| 2026-08-05 | Codex | Tạo `schemas.py` và workboard chia việc ban đầu. |
-| 2026-08-05 | Khánh | Tách `schemas.py` → `contracts/envelope.py` + `contracts/output_schema.py` và freeze. `schemas.py` giữ lại làm shim re-export nên code cũ không gãy. Thêm `POLICY_RULES`, evidence builder, routing table, 44 test (âm + dương). Verify: 50/50 case thật đi qua contract, 0 rejection. |
-| 2026-08-05 | Khánh | Scaffold 22 file: `config.py` (MODEL_REGISTRY ≤10B), `trace.py`, `output_writer.py` chạy được; 15 stub còn lại có signature + owner. Thêm `run.py`, `.env.example`, `prompts/_TEMPLATE.md`. |
+| 2026-08-05 | Hoàng Hưng | Tạo `schemas.py` và workboard chia việc ban đầu. |
+| 2026-08-05 | Khanh | Tách `schemas.py` → `contracts/envelope.py` + `contracts/output_schema.py` và freeze. `schemas.py` giữ lại làm shim re-export nên code cũ không gãy. Thêm `POLICY_RULES`, evidence builder, routing table, 44 test (âm + dương). Verify: 50/50 case thật đi qua contract, 0 rejection. |
+| 2026-08-05 | Khanh | Scaffold 22 file: `config.py` (MODEL_REGISTRY ≤10B), `trace.py`, `output_writer.py` chạy được; 15 stub còn lại có signature + owner. Thêm `run.py`, `.env.example`, `prompts/_TEMPLATE.md`. |
+| 2026-08-05 | Codex | Hoàn thành phần TV1: policy engine deterministic, verifier gate, agent envelope runtime, LLM client OpenAI-compatible, coordinator T1, run/orchestrator wiring, prompt A0/A5/A7. |
