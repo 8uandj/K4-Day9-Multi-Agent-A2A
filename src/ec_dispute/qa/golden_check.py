@@ -18,4 +18,12 @@ def assert_submission_complete() -> None:
 
 
 def assert_rerun_is_identical(before: dict[str, str], after: dict[str, str]) -> None:
-    raise NotImplementedError("TODO(TV3)")
+    for case_id, content in before.items():
+        if case_id not in after:
+            raise AssertionError(f"Missing case in rerun: {case_id}")
+        if content != after[case_id]:
+            raise AssertionError(f"Case {case_id} is not byte-identical between runs")
+    
+    for case_id in after:
+        if case_id not in before:
+            raise AssertionError(f"Unexpected extra case in rerun: {case_id}")
