@@ -11,6 +11,7 @@ import asyncio
 import json
 
 from ec_dispute.contracts import CaseInput
+from ec_dispute.data_store import DataStore
 from ec_dispute.orchestrator import run_case
 from ec_dispute.paths import INPUT_DIR
 from ec_dispute import trace
@@ -27,8 +28,9 @@ def load_cases(case_ids: list[str] | None) -> list[CaseInput]:
 async def main_async(case_ids: list[str] | None) -> None:
     cases = load_cases(case_ids)
     trace.start_run()
+    store = DataStore()
     for case in cases:
-        await run_case(case, write=True)
+        await run_case(case, store=store, write=True)
 
 
 def main() -> None:

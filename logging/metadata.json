@@ -1,0 +1,71 @@
+{
+  "framework": "custom asyncio orchestrator + Pydantic v2 (OpenAI-compatible client)",
+  "runtime": "Hosted OpenAI-compatible API (OpenRouter recommended)",
+  "generation": {
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "seed": 42
+  },
+  "models": [
+    {
+      "agent": "A0_coordinator",
+      "model": "qwen/qwen3-8b",
+      "parameters_b": 8.2,
+      "thinking": true
+    },
+    {
+      "agent": "A1_order_product",
+      "model": "qwen/qwen3-8b",
+      "parameters_b": 8.2,
+      "thinking": false
+    },
+    {
+      "agent": "A2_customer",
+      "model": "qwen/qwen3-8b",
+      "parameters_b": 8.2,
+      "thinking": false
+    },
+    {
+      "agent": "A3_payment",
+      "model": "qwen/qwen3-8b",
+      "parameters_b": 8.2,
+      "thinking": false
+    },
+    {
+      "agent": "A4_delivery",
+      "model": "qwen/qwen3-8b",
+      "parameters_b": 8.2,
+      "thinking": false
+    },
+    {
+      "agent": "A5_policy",
+      "model": "qwen/qwen3-8b",
+      "parameters_b": 8.2,
+      "thinking": true
+    },
+    {
+      "agent": "A6_evidence",
+      "model": "qwen/qwen3-8b",
+      "parameters_b": 8.2,
+      "thinking": false
+    },
+    {
+      "agent": "A7_verifier",
+      "model": "meta-llama/llama-3.1-8b-instruct",
+      "parameters_b": 8.0,
+      "thinking": false
+    }
+  ],
+  "fallback_models": {
+    "A0_coordinator": "openrouter/free",
+    "A1_order_product": "openrouter/free",
+    "A2_customer": "openrouter/free",
+    "A3_payment": "openrouter/free",
+    "A4_delivery": "openrouter/free",
+    "A5_policy": "openrouter/free",
+    "A6_evidence": "openrouter/free",
+    "A7_verifier": "openrouter/free"
+  },
+  "max_parameters_b": 8.2,
+  "constraint": "<=10.0B per agent - satisfied"
+}

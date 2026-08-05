@@ -33,9 +33,9 @@ def _is_late_delivery(delivery: DeliveryAnalysis) -> bool:
     return delivery.delivery_variance_hours is not None and delivery.delivery_variance_hours > 0
 
 
-def _has_split_payment(payment: PaymentReconciliation) -> bool:
-    # Contract currently carries payment_types, not raw payment row count. If the team later
-    # exposes payment count in the A3 artifact, this is the only policy predicate to update.
+def _has_split_payment(payment: PaymentReconciliation, payment_row_count: int | None = None) -> bool:
+    if payment_row_count is not None:
+        return payment_row_count >= 2
     return len(payment.payment_types) >= 2
 
 
@@ -43,6 +43,7 @@ def _primary_issue(
     facts: OrderFacts,
     payment: PaymentReconciliation,
     delivery: DeliveryAnalysis,
+    payment_row_count: int | None = None,
 ) -> PrimaryIssue:
     if facts.order_status == "canceled" and _is_paid(payment):
         return "canceled_order_paid"
@@ -52,7 +53,7 @@ def _primary_issue(
         return "late_delivery_seller"
     if _is_late_delivery(delivery):
         return "late_delivery_logistics"
-    if _has_split_payment(payment) and payment.reconciled is True:
+    if _has_split_payment(payment, payment_row_count) and payment.reconciled is True:
         return "valid_split_payment"
     return "unsupported_late_claim"
 
@@ -61,13 +62,14 @@ def _secondary_issues(
     facts: OrderFacts,
     customer: CustomerContext,
     payment: PaymentReconciliation,
+    payment_row_count: int | None = None,
 ) -> list[str]:
     issues: list[str] = []
     if len(facts.items) >= 2:
         issues.append("multi_item_order")
     if len(facts.seller_ids) >= 2:
         issues.append("multi_seller_order")
-    if _has_split_payment(payment):
+    if _has_split_payment(payment, payment_row_count):
         issues.append("split_payment")
     if customer.related_order_ids:
         issues.append("repeat_customer")
@@ -97,7 +99,12 @@ def _refund(primary: PrimaryIssue, payment: PaymentReconciliation) -> float:
     return 0.0
 
 
-def _actions(primary: PrimaryIssue, facts: OrderFacts, payment: PaymentReconciliation) -> list[str]:
+def _actions(
+    primary: PrimaryIssue,
+    facts: OrderFacts,
+    payment: PaymentReconciliation,
+    payment_row_count: int | None = None,
+) -> list[str]:
     actions = [POLICY_RULES[primary].primary_action]
     if primary == "late_delivery_seller":
         actions.append("review_seller_handoff")
@@ -108,7 +115,7 @@ def _actions(primary: PrimaryIssue, facts: OrderFacts, payment: PaymentReconcili
         actions.append("verify_refund_completion")
     if len(facts.seller_ids) >= 2:
         actions.append("coordinate_multi_seller_case")
-    if _has_split_payment(payment) and primary != "valid_split_payment":
+    if _has_split_payment(payment, payment_row_count) and primary != "valid_split_payment":
         actions.append("verify_payment_allocation")
     return actions[:5]
 
@@ -129,14 +136,16 @@ def decide(
     customer: CustomerContext,
     payment: PaymentReconciliation,
     delivery: DeliveryAnalysis,
+    *,
+    payment_row_count: int | None = None,
 ) -> Verdict:
     """Apply PRIMARY_ISSUE_PRECEDENCE, then build the rest of the verdict around it."""
-    primary = _primary_issue(facts, payment, delivery)
+    primary = _primary_issue(facts, payment, delivery, payment_row_count)
     rule = POLICY_RULES[primary]
     return Verdict(
         case_assessment=CaseAssessment(
             primary_issue=primary,
-            secondary_issues=_secondary_issues(facts, customer, payment),
+            secondary_issues=_secondary_issues(facts, customer, payment, payment_row_count),
             case_status=rule.case_status,
             confidence=_confidence(facts, payment, delivery),
         ),
@@ -145,5 +154,5 @@ def decide(
             responsible_parties=_responsible_parties(primary, delivery),
         ),
         financial_resolution=FinancialResolution(recommended_refund_brl=_refund(primary, payment)),
-        resolution_actions=_actions(primary, facts, payment),
+        resolution_actions=_actions(primary, facts, payment, payment_row_count),
     )

@@ -9,16 +9,20 @@ Wave 3: A5 -> A6 -> A7, with at most 2 repair rounds before deterministic fallba
 
 from __future__ import annotations
 
-import asyncio
-
 from ec_dispute import trace
+from ec_dispute.agents.evidence import EvidenceAgent
 from ec_dispute.agents.coordinator import CoordinatorAgent
-from ec_dispute.contracts import CandidateOutput, CaseInput, CustomerContext, PaymentReconciliation
+from ec_dispute.contracts import CandidateOutput, CaseInput, CustomerContext
 from ec_dispute.data_store import DataStore
 from ec_dispute.output_writer import write_output
 from ec_dispute.policy_engine import decide
 from ec_dispute.tools.calculations import build_delivery_analysis, build_payment_reconciliation
-from ec_dispute.tools.lookups import build_customer_context, build_order_facts
+from ec_dispute.tools.lookups import (
+    build_customer_context,
+    build_order_facts,
+    customer_context_provenance,
+    order_facts_provenance,
+)
 from ec_dispute.verifier import verify
 
 
@@ -31,25 +35,34 @@ async def run_case(case: CaseInput, store: DataStore | None = None, *, write: bo
 
     facts = build_order_facts(store, case.customer_request.claimed_order_id)
 
-    def build_payment() -> PaymentReconciliation:
-        return build_payment_reconciliation(facts, store.payments_for(facts.order_id))
-
     if facts.customer_id is None:
-        customer_task = asyncio.to_thread(CustomerContext)
+        customer = CustomerContext()
     else:
-        customer_task = asyncio.to_thread(build_customer_context, store, facts.customer_id, facts.order_id)
-    payment_task = asyncio.to_thread(build_payment)
-    delivery_task = asyncio.to_thread(build_delivery_analysis, facts)
-    customer, payment, delivery = await asyncio.gather(customer_task, payment_task, delivery_task)
+        customer = build_customer_context(store, facts.customer_id, facts.order_id)
+    payment_rows = store.payments_for(facts.order_id)
+    payment = build_payment_reconciliation(facts, payment_rows)
+    delivery = build_delivery_analysis(facts)
 
-    verdict = decide(facts, customer, payment, delivery)
+    verdict = decide(facts, customer, payment, delivery, payment_row_count=len(payment_rows))
 
-    # A6 assembly belongs to TV2 and is intentionally not duplicated here. Keeping this
-    # boundary explicit prevents A0 from becoming a hidden monolith.
-    from ec_dispute.agents.evidence import assemble_candidate_output  # type: ignore[attr-defined]
+    provenance = []
+    provenance += order_facts_provenance(facts)
+    if facts.customer_id:
+        provenance += customer_context_provenance(facts.customer_id, customer)
+    provenance += [f"payment:{facts.order_id}:{int(row['payment_sequential'])}" for row in payment_rows]
 
-    candidate = assemble_candidate_output(case.case_id, facts, customer, payment, delivery, verdict)
-    validation = verify(candidate, [], store)
+    candidate_env = EvidenceAgent().run(
+        case.case_id,
+        facts,
+        customer,
+        delivery,
+        payment,
+        verdict,
+        provenance,
+    )
+    trace.record_handoff(candidate_env, latency_ms=0)
+    candidate = candidate_env.payload
+    validation = verify(candidate, [candidate_env], store)
     if write:
         write_output(candidate, validation)
     return candidate
